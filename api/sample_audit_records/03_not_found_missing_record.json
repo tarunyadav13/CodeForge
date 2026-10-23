@@ -1,0 +1,68 @@
+{
+  "response": {
+    "trace_id": "a8d73ee3aad3",
+    "answer": "I could not find this information in the authorised university sources.",
+    "answer_type": "not_found",
+    "citations": [],
+    "tools_invoked": [
+      {
+        "tool": "get_attendance",
+        "input": {
+          "student_id": "S1009",
+          "course_code": "CS201"
+        },
+        "output": {
+          "student_id": "S1009",
+          "course_code": "CS201",
+          "course_name": "Data Structures",
+          "status": "no_record",
+          "classes_held": null,
+          "classes_attended": null,
+          "attendance_pct": null,
+          "message": "No attendance record is stored for this student and course."
+        }
+      }
+    ],
+    "applied_rules": [],
+    "conflicts_detected": [],
+    "explanation": "No attendance record is stored for this student and course.",
+    "as_of_date": "2026-10-06"
+  },
+  "audit_record": {
+    "trace_id": "a8d73ee3aad3",
+    "timestamp": "2026-10-23T08:29:59Z",
+    "student_id": "S1009",
+    "question_category": "personal_attendance",
+    "sources_retrieved": [],
+    "precedence_decision": null,
+    "tools_invoked": [
+      {
+        "tool": "get_attendance",
+        "status": "no_record",
+        "input": {
+          "student_id": "S1009",
+          "course_code": "CS201"
+        },
+        "output": {
+          "student_id": "S1009",
+          "course_code": "CS201",
+          "course_name": "Data Structures",
+          "status": "no_record",
+          "classes_held": null,
+          "classes_attended": null,
+          "attendance_pct": null,
+          "message": "No attendance record is stored for this student and course."
+        }
+      }
+    ],
+    "answer_type": "not_found",
+    "model": "none (deterministic tools)",
+    "llm_calls": 0,
+    "tokens": 0,
+    "latency_ms": 1,
+    "applied_rules": [],
+    "conflicts_detected": [],
+    "citations": [],
+    "as_of_date": "2026-10-06"
+  }
+}

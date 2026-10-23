@@ -1,0 +1,18 @@
+Generate fictional student profiles for a university test database.
+
+Produce a JSON object with exactly one key, "students", whose value is an array of student objects.
+
+Each student object must have exactly these keys:
+  "full_name"  : string, a plausible fictional Indian full name (first name and surname, letters and spaces only, 5 to 40 characters)
+  "programme"  : string, exactly one of the programme values listed below
+  "batch_year" : integer, exactly one of the batch years listed below
+  "cgpa"       : number between 5.00 and 9.80 with at most two decimal places
+
+Required groups. Produce exactly the stated number of students for every (programme, batch_year) pair:
+<<GROUPS>>
+
+Rules:
+- All full_name values must be different from each other.
+- Do not include student IDs, emails, phone numbers or any other keys.
+- Spread cgpa realistically: most students between 6.00 and 9.00, a few below 6.00 and a few above 9.00.
+- Output the JSON object only.
