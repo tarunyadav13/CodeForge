@@ -1,0 +1,32 @@
+Validation of /tmp/final.db
+------------------------------------------------------------
+  students         36
+  programmes       2
+  batches          2
+  courses          8
+  attendance_rows  139
+  result_rows      76
+  rules            6
+  sources          3
+Checks run:
+  - dataset size (>=30 students, >=2 programmes, >=2 batches, >=6 courses)
+  - identifiers (format, duplicates, reserved judge ranges)
+  - student values (semester 1-10, CGPA 0-10, backlogs >= 0)
+  - attendance (held > 0, 0 <= attended <= held, valid references, programme match)
+  - results (marks arithmetic, ranges, status consistency, valid references)
+  - stored active_backlogs vs backlogs derived from results
+  - rule_registry (dates, operator, scope, numeric value, source reference)
+  - foreign keys and SQLite integrity
+  - required edge cases present (thresholds read from rule_registry)
+Edge cases found (student IDs):
+  - ABSENT result: S1010
+  - CGPA exactly at placement cut-off: S1011, S1023
+  - DETAINED result: S1022
+  - attendance exactly at threshold: S1001, S1005, S1007, S1011, S1013, S1014, S1020, S1027 ...
+  - attendance one class below threshold: S1001, S1002, S1005, S1006, S1008, S1012, S1014, S1021 ...
+  - failed course just below pass mark: S1007
+  - multiple backlogs (>=2): S1008, S1025
+  - student with no attendance records: S1028
+  - student with no result records: S1013
+------------------------------------------------------------
+RESULT: PASSED - 0 error(s), 0 warning(s)

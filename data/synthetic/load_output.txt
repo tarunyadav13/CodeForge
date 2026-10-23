@@ -1,0 +1,8 @@
+Loaded from data/synthetic into /tmp/final.db
+  source_register  source_register.csv: read 3, loaded 3, rejected 0
+  courses          courses.csv: read 8, loaded 8, rejected 0
+  students         students.csv: read 36, loaded 36, rejected 0
+  rule_registry    rule_registry.csv: read 6, loaded 6, rejected 0
+  attendance       attendance.csv: read 139, loaded 139, rejected 0
+  results          results.csv: read 76, loaded 76, rejected 0
+Total: 268 rows loaded, 0 rejected.
