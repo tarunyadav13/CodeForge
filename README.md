@@ -9,6 +9,17 @@ student-specific questions with deterministic Python tools over SQLite.
 > and 2 and was not on `main` when this was written. Sections marked *planned* describe the
 > agreed design, not verified behaviour. See [docs/known_limitations.md](docs/known_limitations.md).
 
+## What is implemented, mocked or unverified (2026-10-23)
+
+| Item | Status |
+|---|---|
+| Streamlit UI, API client, rendering (`ui/`) | **Implemented, tested with mocked HTTP only** |
+| Eval dataset (30 cases), runner, scoring (`eval/`) | **Implemented, tested with mocks.** Live run: not done |
+| Source Register + corpus (`data/`) | **Implemented** (3 real PDFs, 6 synthetic fixtures); `effective_from` of the real ones is blank, awaiting a team decision |
+| Sample audit records | **Examples only** (`docs/sample_audit_records.json`), not backend output |
+| FastAPI app, graph, retrieval, precedence, tools, SQLite, audit, ingest, student CSV loader | **Not in this checkout** (Members 1 and 2); everything about their behaviour is unverified |
+| End-to-end behaviour, live metrics, live demo | **BLOCKED ON BACKEND** |
+
 ## What it does
 
 - **Intended users:** students checking policies (attendance, exams, placements) and their own
@@ -71,13 +82,24 @@ ollama pull llama3.1:8b
 
 ## Run
 
+`api/main.py` and `requirements.txt` are **not present on the `m3-ui` branch**, so the API command
+below cannot work here yet; it is the agreed command from the handoff and is unverified. Until the
+backend lands, install what Member 3's code needs directly:
+
 ```powershell
-# Terminal 1: API
+pip install "streamlit>=1.40" requests pytest
+```
+
+```powershell
+# Terminal 1: API (needs Members 1/2's code merged)
 uvicorn api.main:app --reload --port 8000
 
-# Terminal 2: UI (opens http://localhost:8501)
+# Terminal 2: UI (opens http://localhost:8501; shows "Cannot reach the API" if terminal 1 is not running)
 streamlit run ui/app.py
 ```
+
+To load the policy corpus once the API runs, ingest each row of [data/source_register.csv](data/source_register.csv)
+with its file from `data/documents/` (see [data/README.md](data/README.md) for the blank-date caveat).
 
 ## Configuration
 
@@ -115,11 +137,13 @@ Invoke-RestMethod -Method Post http://localhost:8000/ask `
 Invoke-RestMethod http://localhost:8000/sources
 Invoke-RestMethod http://localhost:8000/audit/<trace_id from /ask>
 
-# /ingest: multipart file + metadata JSON (Annex B fields). Field names "file" and "metadata"
-# are the UI's assumption until api/main.py implements the endpoint.
+# /ingest: multipart "file" + "metadata" (JSON of the Annex B fields). The field names are the UI's
+# assumption until api/main.py implements the endpoint. Windows PowerShell 5.1 strips double quotes
+# when calling native programs, hence the -replace.
+$meta = '{"doc_id":"SYN-CIRC-ATT-80","title":"Synthetic Test Circular: Revised Attendance Threshold","issuer":"Synthetic Test University, Office of the Registrar (fictional)","authority_level":2,"doc_type":"circular","version":"1.0","effective_from":"2026-07-01","supersedes":"SYN-REG-ATT-75","scope_programmes":"ALL","scope_batches":"ALL","provenance":"SYNTHETIC test fixture","retrieved_on":"2026-10-23","synthetic":"Y"}' -replace '"','\"'
 curl.exe -X POST http://localhost:8000/ingest `
-  -F "file=@docs\sample.pdf" `
-  -F 'metadata={"doc_id":"SYN-NOTICE-01","title":"Sample notice","issuer":"Registrar","authority_level":3,"doc_type":"notice","version":"1","effective_from":"2026-10-01","provenance":"synthetic","retrieved_on":"2026-10-23","synthetic":"Y"}'
+  -F "file=@data\documents\synthetic\SYN-CIRC-ATT-80.md" `
+  -F "metadata=$meta"
 ```
 
 ## Tests and evaluation
@@ -129,7 +153,8 @@ python -m pytest -q                                   # mocked tests, no backend
 $env:M3_LIVE_API = "1"; python -m pytest -q tests/test_m3_live_api.py   # needs the API running
 
 python eval/runner.py --validate-only                 # check eval/eval_set.jsonl
-python eval/runner.py --audit                         # run all cases against API_BASE_URL
+python eval/runner.py --mock                          # MOCK-ONLY replay; does not measure the assistant
+python eval/runner.py --audit                         # LIVE: run all cases against API_BASE_URL
 python eval/runner.py --ids EV-005,EV-021             # a subset
 ```
 
@@ -138,12 +163,17 @@ Details, metric definitions and what is N/A: [docs/evaluation.md](docs/evaluatio
 
 ### Results
 
-No evaluation has been run against the real backend yet, so there are no measured results to
-report. This section will only ever contain numbers copied from a runner output file.
+**Live: none.** No evaluation has been run against the real backend, so there are no measured
+results to report. This section will only ever contain numbers copied from a runner output file.
+
+**Mock (2026-10-23): MOCK-ONLY.** `python eval/runner.py --mock` replays each case's own expected
+answer, so 30/30 pass by construction; that checks the dataset and scoring code, not the assistant.
+Latency, retrieval hit rate, LLM calls and tokens are N/A. See [docs/evaluation.md](docs/evaluation.md).
 
 ## Documentation
 
 [Architecture](docs/architecture.md) · [Evaluation](docs/evaluation.md) ·
 [Demo script](docs/demo_script.md) · [Known limitations](docs/known_limitations.md) ·
-[Integration requests](docs/integration_requests.md) · [Data card](docs/data_card.md) ·
+[Integration requests and checklist](docs/integration_requests.md) · [Data card](docs/data_card.md) ·
+[Corpus and Source Register](data/README.md) · [Sample audit records](docs/sample_audit_records.json) ·
 [AI usage disclosure](docs/ai_usage_disclosure.md) · [Contribution statement](docs/contribution_statement.md)

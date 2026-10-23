@@ -6,7 +6,8 @@ owned by another member, not yet verified here.
 | Layer | Path | Owner | Status |
 |---|---|---|---|
 | Streamlit UI | `ui/app.py`, `ui/api_client.py`, `ui/formatting.py` | M3 | built |
-| Evaluation | `eval/eval_set.jsonl`, `eval/runner.py` | M3 | built |
+| Evaluation | `eval/eval_set.jsonl`, `eval/runner.py`, `eval/mock_api.py` (mock only) | M3 | built, mock-tested |
+| Policy corpus + Source Register | `data/source_register.csv`, `data/documents/` | M3 (with M1) | built; real-doc dates unresolved |
 | API contract | `api/models.py` (frozen) | all | in foundation code, not on `main` yet |
 | FastAPI app | `api/main.py` | M2 | foundation mock (not on `main` yet) |
 | Graph, retrieval, precedence, LLM | `graph/`, `rag/`, `llm/` | M1 | planned |
