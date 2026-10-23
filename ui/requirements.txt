@@ -1,0 +1,3 @@
+# Streamlit Community Cloud installs this (UI only). The backend, ChromaDB and torch are NOT needed here.
+streamlit>=1.40
+requests>=2.31

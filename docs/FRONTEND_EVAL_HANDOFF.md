@@ -16,7 +16,7 @@ are absent from this checkout. The contract below is the one quoted in
 |---|---|
 | Streamlit entry point | `ui/app.py` (run from the repository root) |
 | UI address | http://localhost:8501 (Streamlit default) |
-| Expected API base URL | `http://localhost:8000`, override with env var `API_BASE_URL` (also editable in the UI sidebar) |
+| Expected API base URL | no default since the deployment change: set `API_BASE_URL` (Streamlit secret or env var; e.g. `http://127.0.0.1:8000` locally); also editable in the UI sidebar |
 | HTTP code | only `ui/api_client.py` talks HTTP; the UI and `eval/runner.py` both use it |
 | CORS | not needed: Streamlit calls the API from its server process, not from the browser |
 | Timeouts | connect 5 s; `/ask` read 120 s (`ASK_TIMEOUT_SECONDS`); `/ingest` read 300 s (`INGEST_TIMEOUT_SECONDS`); health/sources/audit read 15 s |

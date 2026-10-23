@@ -45,7 +45,7 @@ prompt_injection 2. Handoff minimums (3 unanswerable, 3 conflict/version, 4 pers
 ```powershell
 python eval/runner.py --validate-only      # dataset check, no HTTP
 python eval/runner.py --mock               # MOCK-ONLY replay, no API needed
-python eval/runner.py --audit              # LIVE: API_BASE_URL or http://localhost:8000
+python eval/runner.py --audit              # LIVE: needs API_BASE_URL (no default) or --base-url
 python eval/runner.py --ids EV-005,EV-021  # subset
 ```
 

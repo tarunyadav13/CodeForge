@@ -95,8 +95,9 @@ python scripts/load_students.py --dir data/synthetic
 # 1) Terminal 1: API (run ONE worker: the source-register lock is per process)
 uvicorn api.main:app --port 8000
 
-# 2) Terminal 2: UI (http://localhost:8501)
+# 2) Terminal 2: UI (http://localhost:8501). The UI has no default API URL, so set it:
 .\.venv\Scripts\Activate.ps1
+$env:API_BASE_URL = "http://127.0.0.1:8000"
 streamlit run ui/app.py
 ```
 
@@ -110,6 +111,9 @@ python scripts/ingest_corpus.py            # reads data/source_register.csv, ski
 
 or use the "Ingest document" tab in the UI, or `curl.exe -X POST http://127.0.0.1:8000/ingest -F "file=@path	o\doc.md" -F "metadata=<meta.json"`.
 
+**Hosting the API and the UI separately (Render + Streamlit Community Cloud):** see [docs/DEPLOY.md](docs/DEPLOY.md). The UI needs
+`API_BASE_URL` (a Streamlit secret or environment variable) and has no default.
+
 Tests and evaluation:
 
 ```powershell
@@ -122,7 +126,7 @@ python eval/runner.py --audit --base-url http://127.0.0.1:8000         # LIVE ev
 
 | Variable | Used by | Default | Meaning |
 |---|---|---|---|
-| `API_BASE_URL` | UI, eval runner, live tests | `http://localhost:8000` | Where the FastAPI app listens. Also editable in the UI sidebar. |
+| `API_BASE_URL` | UI, eval runner, live tests | **none (required)** | Where the FastAPI app listens. Streamlit secret or environment variable; also editable in the UI sidebar. Locally `http://127.0.0.1:8000`; hosted: the API's public `https://` URL. |
 | `ASK_TIMEOUT_SECONDS` | UI, eval runner | `120` | Read timeout for `POST /ask` (local LLMs are slow). |
 | `INGEST_TIMEOUT_SECONDS` | UI | `300` | Read timeout for `POST /ingest`. |
 | `M3_LIVE_API` | tests | unset | Set to `1` to run `tests/test_m3_live_api.py` against a running API. |

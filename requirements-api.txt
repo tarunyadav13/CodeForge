@@ -1,0 +1,12 @@
+# Backend only (FastAPI + SQLite tools + ChromaDB RAG + LangGraph workflow). Used by render.yaml.
+# The Streamlit UI and the tests are NOT needed on the API host; the full local set is requirements.txt.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6,<3
+python-multipart>=0.0.9
+requests>=2.31
+openai>=2,<4
+langgraph>=1.0
+chromadb>=1.0,<2
+sentence-transformers>=5.0
+pypdf>=5.0
