@@ -111,8 +111,8 @@ python scripts/ingest_corpus.py            # reads data/source_register.csv, ski
 
 or use the "Ingest document" tab in the UI, or `curl.exe -X POST http://127.0.0.1:8000/ingest -F "file=@path	o\doc.md" -F "metadata=<meta.json"`.
 
-**Hosting the API and the UI separately (Render + Streamlit Community Cloud):** see [docs/DEPLOY.md](docs/DEPLOY.md). The UI needs
-`API_BASE_URL` (a Streamlit secret or environment variable) and has no default.
+**Hosting:** one free Streamlit Community Cloud app can run the whole thing (set the secret `EMBEDDED_API = "1"`; main file `ui/app.py`), or the
+UI can call a separate API via `API_BASE_URL` (no default). See [docs/DEPLOY.md](docs/DEPLOY.md).
 
 Tests and evaluation:
 

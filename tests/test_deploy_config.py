@@ -131,8 +131,14 @@ def test_backend_requirements_are_a_subset_of_the_full_requirements():
     assert _requirement_names("requirements-api.txt") <= _requirement_names("requirements.txt")
 
 
-def test_ui_requirements_are_minimal():
-    assert _requirement_names("ui/requirements.txt") == {"streamlit", "requests"}
+def test_streamlit_cloud_requirements_run_the_whole_app_without_torch():
+    """ui/requirements.txt is what Streamlit Community Cloud installs for the one-app (embedded API) deployment."""
+    ui = _requirement_names("ui/requirements.txt")
+    assert {"streamlit", "requests"} <= ui
+    assert not ui & {"torch", "sentence-transformers", "pytest", "httpx"}
+    missing = {m for m in _third_party_imports() if m not in DIST or DIST[m] not in ui}
+    # sentence_transformers is imported lazily and only for the non-ONNX backend, which the embedded mode never selects
+    assert missing <= {"sentence_transformers"}, sorted(missing)
 
 
 # ---- Render blueprint -------------------------------------------------------------------------------------------------------
@@ -240,3 +246,79 @@ def test_bootstrap_fails_loudly_when_the_student_database_cannot_be_prepared(mon
 
     monkeypatch.setattr(bd, "ensure_students", boom)
     assert bd.main([]) == 1
+
+
+# ---- one-app hosting: the backend inside the Streamlit process --------------------------------------------------------------
+def test_embedded_mode_is_opt_in_and_parsed_strictly():
+    from ui.embedded_api import embedded_enabled
+
+    assert [embedded_enabled(v) for v in ("1", "true", "YES", "on")] == [True] * 4
+    assert [embedded_enabled(v) for v in ("", "0", "false", "no", "maybe")] == [False] * 5
+
+
+def test_embedded_mode_defaults_go_to_a_temp_dir_use_the_onnx_embedder_and_never_override_settings(tmp_path, monkeypatch):
+    from ui.embedded_api import configure_environment
+
+    for k in ("STUDENT_DB_PATH", "CHROMA_DIR", "HF_HOME", "EMBEDDING_BACKEND"):
+        monkeypatch.delenv(k, raising=False)
+    base = configure_environment(tmp_path / "app")
+    import os
+
+    assert os.environ["STUDENT_DB_PATH"].startswith(str(base)) and os.environ["CHROMA_DIR"].startswith(str(base))
+    assert os.environ["EMBEDDING_BACKEND"] == "onnx"
+    monkeypatch.setenv("CHROMA_DIR", "/custom/chroma")
+    configure_environment(tmp_path / "app")
+    assert os.environ["CHROMA_DIR"] == "/custom/chroma"
+
+
+def test_onnx_embedder_is_selected_by_name_loads_lazily_and_embeds_nothing_for_empty_input():
+    from rag.embeddings import OnnxMiniLMEmbedder, get_embedder
+
+    e = get_embedder({"EMBEDDING_BACKEND": "onnx"})
+    assert isinstance(e, OnnxMiniLMEmbedder) and e.name == "onnx-all-MiniLM-L6-v2" and e._fn is None
+    assert e.embed([]) == [] and e._fn is None  # no model download for nothing
+
+
+def test_the_embedded_api_listens_on_loopback_only_and_answers_with_real_data(tmp_path, monkeypatch):
+    import requests
+
+    from rag import service as rag_service
+    from scripts import bootstrap_deploy as bd
+    from ui.embedded_api import start_embedded_api
+
+    monkeypatch.setenv("STUDENT_DB_PATH", str(tmp_path / "e.db"))
+    monkeypatch.setenv("CHROMA_DIR", str(tmp_path / "chroma"))
+    monkeypatch.setenv("EMBEDDING_BACKEND", "hash")  # offline stand-in; the ONNX model needs a download
+    monkeypatch.setenv("RAG_MIN_SCORE", "0.2")
+    monkeypatch.setenv("MOCK_LLM", "true")
+    monkeypatch.delenv("API_BASE_URL", raising=False)
+    rag_service.set_store(None)
+
+    def build():
+        bd.ensure_students()
+        bd.ensure_corpus()
+
+    try:
+        url = start_embedded_api(bootstrap=build, ready_timeout=120)
+        assert url.startswith("http://127.0.0.1:")  # loopback: not reachable from outside the host
+        h = requests.get(f"{url}/health", timeout=10).json()
+        assert h["sqlite"]["status"] == "ok" and h["vector_store"]["status"] == "ok"
+        r = requests.post(f"{url}/ask", headers={"X-Student-Id": "S1002"}, timeout=60,
+                          json={"question": "What is my attendance in CS201?", "as_of_date": "2026-10-06"}).json()
+        assert r["answer_type"] == "calculated" and "77.5" in r["answer"]
+    finally:
+        rag_service.set_store(None)
+
+
+def test_app_starts_the_embedded_api_when_enabled_and_needs_no_api_url(monkeypatch):
+    """The Streamlit script, run for real with EMBEDDED_API on, must end up pointing at its own loopback API."""
+    from streamlit.testing.v1 import AppTest
+
+    import ui.embedded_api as ea
+
+    monkeypatch.delenv("API_BASE_URL", raising=False)
+    monkeypatch.setenv("EMBEDDED_API", "1")
+    monkeypatch.setattr(ea, "start_embedded_api", lambda *a, **k: "http://127.0.0.1:59999")
+    at = AppTest.from_file(str(ROOT / "ui" / "app.py"), default_timeout=60).run()
+    assert not at.exception
+    assert any(t.value == "http://127.0.0.1:59999" for t in at.sidebar.text_input)

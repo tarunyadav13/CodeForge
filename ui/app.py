@@ -39,10 +39,30 @@ st.set_page_config(page_title="Student Services Assistant", page_icon="🎓", la
 
 # --- State ------------------------------------------------------------------------------
 
+@st.cache_resource(show_spinner="Preparing the knowledge base and the student database (the first start takes a minute or two)...")
+def embedded_api_url() -> str:
+    """One-app hosting: run the backend inside this process (see ui/embedded_api.py). Cached for the server's lifetime."""
+    from ui.embedded_api import start_embedded_api
+
+    return start_embedded_api()
+
+
+def initial_api_url() -> str:
+    from ui.embedded_api import embedded_enabled
+
+    if embedded_enabled():
+        try:
+            return embedded_api_url()
+        except Exception as exc:  # noqa: BLE001 - show the reason instead of a blank page
+            st.error(f"The embedded API could not start: {type(exc).__name__}: {exc}")
+            return ""
+    return get_api_base_url()
+
+
 def init_state() -> None:
     defaults = {
         "messages": [],          # {"role", "content", "response", "error", "warnings", "latency_ms"}
-        "api_base_url": get_api_base_url(),
+        "api_base_url": initial_api_url(),
         "health": None,          # ApiResult of the last /health call
     }
     for key, value in defaults.items():

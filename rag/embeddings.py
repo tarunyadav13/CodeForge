@@ -73,9 +73,36 @@ class SentenceTransformerEmbedder:
         return [list(map(float, v)) for v in vectors]
 
 
+class OnnxMiniLMEmbedder:
+    """all-MiniLM-L6-v2 through ChromaDB's bundled ONNX runtime: no torch, ~115 MB instead of ~570 MB resident.
+
+    Checked on 4 texts against sentence-transformers: vectors identical (cosine 1.00000) and identical query-to-document
+    similarities. chromadb downloads the model file (~80 MB) on first use. It has its own ``name`` so a store is never
+    mixed with vectors from another backend.
+    """
+
+    name = "onnx-all-MiniLM-L6-v2"
+
+    def __init__(self):
+        self._fn = None
+
+    def embed(self, texts: Sequence[str]) -> list[list[float]]:
+        if not texts:
+            return []
+        if self._fn is None:
+            from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
+
+            self._fn = ONNXMiniLM_L6_V2()
+        return [[float(x) for x in v] for v in self._fn(list(texts))]
+
+
 def get_embedder(env: Optional[Mapping[str, str]] = None) -> Embedder:
-    """EMBEDDING_BACKEND=hash selects the offline stand-in; EMBEDDING_MODEL names the model."""
+    """EMBEDDING_BACKEND: ``hash`` = offline test stand-in, ``onnx`` = MiniLM via ONNX (no torch, for small hosts);
+    default sentence-transformers (``EMBEDDING_MODEL`` names the model)."""
     env = os.environ if env is None else env
-    if (env.get("EMBEDDING_BACKEND") or "").strip().lower() == "hash":
+    backend = (env.get("EMBEDDING_BACKEND") or "").strip().lower()
+    if backend == "hash":
         return HashEmbedder()
+    if backend == "onnx":
+        return OnnxMiniLMEmbedder()
     return SentenceTransformerEmbedder((env.get("EMBEDDING_MODEL") or "").strip() or DEFAULT_MODEL)

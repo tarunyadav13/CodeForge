@@ -1,3 +1,12 @@
-# Streamlit Community Cloud installs this (UI only). The backend, ChromaDB and torch are NOT needed here.
+# Streamlit Community Cloud: ONE free app that runs the backend inside itself (set the EMBEDDED_API secret; docs/DEPLOY.md).
+# No torch / sentence-transformers: embeddings use the ONNX build of the same MiniLM model that ships with chromadb.
 streamlit>=1.40
 requests>=2.31
+fastapi>=0.110
+uvicorn>=0.29
+pydantic>=2.6,<3
+python-multipart>=0.0.9
+chromadb>=1.0,<2
+langgraph>=1.0
+pypdf>=5.0
+openai>=2,<4
