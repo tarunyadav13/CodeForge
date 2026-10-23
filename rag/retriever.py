@@ -18,11 +18,14 @@ from api.models import Citation
 from rag.store import VectorStore
 
 DEFAULT_TOP_K = 4
-# Provisional cosine-similarity floor for all-MiniLM-L6-v2. NOT tuned: set RAG_MIN_SCORE
-# or pass min_score once the evaluation set has measured a good value. A 4-query smoke test
-# on a 3-document toy corpus (tests/m1/test_rag_real_embedder.py) scored relevant hits
-# 0.37-0.72 but an off-topic question still reached 0.27, so 0.25 is likely too permissive.
-DEFAULT_MIN_SCORE = 0.25
+# Cosine-similarity floor for all-MiniLM-L6-v2, set from eval/eval_set.jsonl run against the synthetic corpus
+# (2026-10-23): top-1 score of the 7 answerable synthetic-corpus cases was 0.60-0.79; of the 4 unanswerable cases,
+# the off-topic ones scored 0.24 (cricket) and 0.35 (parking fee), the NEAR-TOPIC ones 0.56 (2031 exam dates) and
+# 0.62 (1985 regulation). 0.40 therefore rejects off-topic questions and loses no answerable case, but a score
+# floor can NOT reject near-topic unanswerable questions (they overlap the answerable range); the workflow asks the
+# LLM whether the evidence answers the question for those. 11 cases, synthetic documents only: the real PDFs are not
+# ingested, so retune with RAG_MIN_SCORE once the real corpus and a larger evaluation set exist.
+DEFAULT_MIN_SCORE = 0.40
 
 
 @dataclass(frozen=True)
