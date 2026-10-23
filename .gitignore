@@ -1,6 +1,23 @@
-.venv/
+# Python
 __pycache__/
 *.py[cod]
-.env
-data/chroma/
+.venv/
+venv/
 .pytest_cache/
+
+# Secrets / local config
+.env
+.env.*
+# Local data stores (generated at runtime)
+data/chroma/
+*.db
+*.sqlite3
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+# Integration: runtime data (never commit)
+data/student_services.db
+data/uploads/
+data/*.db-journal

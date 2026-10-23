@@ -1,0 +1,15 @@
+# Integrated app: FastAPI backend (SQLite tools) + RAG (ChromaDB) + LLM clients + Streamlit UI + evaluation.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6,<3
+python-multipart>=0.0.9
+streamlit>=1.40
+requests>=2.31
+openai>=2,<4
+chromadb>=1.0,<2
+sentence-transformers>=5.0
+pypdf>=5.0
+
+# Tests
+pytest>=8.0
+httpx>=0.27
