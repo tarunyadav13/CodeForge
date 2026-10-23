@@ -14,17 +14,20 @@ from typing import Optional
 
 DEFAULT_MAX_WORDS = 300  # roughly 400 tokens
 
-# "Clause 7.2 ...", "7.2 Heading", "7.2.1) Heading", "3. Heading". A bare "40 classes" is
-# deliberately NOT a heading: plain integers need a trailing "." or ")".
+# Clause starts: "Clause 7.2 ...", "7.2 Heading", "1.1 With effect from ... (a long sentence)", "3. Heading".
+# Real regulations number whole sentences, so dotted numbers ("7.2 ") and keyword forms ("Clause 7.2") are accepted at
+# any line length. A bare "40 classes" is NOT a clause. Plain "3. " list numbers are only taken as headings when the
+# line is short, so numbered sentences inside a clause do not split it. The first word after a dotted/plain number must
+# start with a capital letter or "(" so a wrapped PDF line such as "2.5 percent of ..." is not mistaken for a clause.
 _HEADING_RE = re.compile(
     r"""^\s*(?:
-        (?:section|clause|article|regulation|rule)\s+(?P<kw>\d+(?:\.\d+)*)[.):]?\s+\S
-      | (?P<dotted>\d+(?:\.\d+)+)[.)]?\s+[A-Za-z(]
-      | (?P<plain>\d+)[.)]\s+[A-Za-z(]
+        (?i:section|clause|article|regulation|rule)\s+(?P<kw>\d+(?:\.\d+)*)[.):]?\s+\S
+      | (?P<dotted>\d+(?:\.\d+)+)[.)]?\s+[A-Z(]
+      | (?P<plain>\d+)[.)]\s+[A-Z(]
     )""",
-    re.IGNORECASE | re.VERBOSE,
+    re.VERBOSE,
 )
-_MAX_HEADING_CHARS = 160
+_MAX_PLAIN_HEADING_CHARS = 160
 
 
 @dataclass(frozen=True)
@@ -36,11 +39,11 @@ class Chunk:
 
 
 def heading_label(line: str) -> Optional[str]:
-    """Return the clause number if ``line`` looks like a clause heading, else None."""
-    if len(line) > _MAX_HEADING_CHARS:
-        return None
+    """Return the clause number if ``line`` starts a numbered clause, else None."""
     m = _HEADING_RE.match(line)
     if not m:
+        return None
+    if m.group("plain") and len(line) > _MAX_PLAIN_HEADING_CHARS:
         return None
     return m.group("kw") or m.group("dotted") or m.group("plain")
 

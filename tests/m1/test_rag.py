@@ -494,3 +494,25 @@ def test_concurrent_registrations_are_all_kept(store):
     [t.start() for t in threads]
     [t.join() for t in threads]
     assert [r.doc_id for r in store.list_sources()] == [f"TEST-{i:02d}" for i in range(12)]
+
+
+# ---- clause detection on long numbered sentences (regression: found in the end-to-end run) -------------------------
+LONG_CLAUSE = ("1.1 With effect from 2026-07-01 the minimum attendance required to appear in the end-semester "
+               "examination of a course is 80% of the classes held, replacing the 75% stated in Section 4.1 of the "
+               "earlier regulation, and this applies to every programme and every batch of the university.")
+
+
+def test_long_numbered_sentences_are_recognised_as_clauses():
+    assert len(LONG_CLAUSE) > 160
+    assert heading_label(LONG_CLAUSE) == "1.1"
+    chunks = chunk_document("# Title and banner\n\n## Section 1. Revised\n\n" + LONG_CLAUSE + "\n\n1.2 All other provisions continue to apply.")
+    assert [c.section for c in chunks] == ["", "1.1", "1.2"]
+    assert "80%" in chunks[1].text and "banner" not in chunks[1].text  # the rule is its own chunk, not buried in the preamble
+
+
+def test_clause_heading_rules_stay_conservative():
+    assert heading_label("2.5 percent of the marks are awarded for attendance") is None  # lowercase: wrapped PDF line
+    assert heading_label("3. " + "word " * 60) is None  # long plain-numbered sentence stays inside its clause
+    assert heading_label("40 classes were held") is None
+    assert heading_label("Clause 7.2: " + "text " * 50) == "7.2"
+    assert heading_label("1.1 (a) A student must attend") == "1.1"
