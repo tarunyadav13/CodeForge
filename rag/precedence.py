@@ -32,6 +32,12 @@ from api.models import Citation, SourceRecord
 from rag.retriever import RetrievedChunk
 
 INFORMATIONAL_LEVEL = 5
+# A disagreement only counts as a conflict if AT LEAST ONE of the two chunks scores within this margin of the
+# best-matching chunk, i.e. it bears on the question. Two weak, unrelated chunks that merely disagree with each
+# other no longer flip a clear answer to conflict_flagged. (Requiring BOTH to be close was tried and rejected: a
+# relevant older regulation can score well below the circular that supersedes it.) 0.15 is a first setting,
+# checked only on synthetic fixtures and a few smoke queries, not tuned on an evaluation set.
+DEFAULT_RELEVANCE_MARGIN = 0.15
 SUPERSEDING_LEVELS = (1, 2)
 
 # ---- text -> comparable quantities (heuristic, see module docstring) ---------------------
@@ -269,8 +275,12 @@ def resolve_precedence(
     *,
     same_subject: Optional[Callable[[RetrievedChunk, RetrievedChunk], bool]] = None,
     value_of: Optional[Callable[[str], dict[str, frozenset[str]]]] = None,
+    relevance_margin: Optional[float] = DEFAULT_RELEVANCE_MARGIN,
 ) -> PrecedenceResult:
     """Apply Annex A to ``chunks`` for a student (``programme``/``batch``; None if unknown).
+
+    ``relevance_margin``: a disagreement only counts as a conflict if at least one of the two chunks scores within
+    this margin of the best match (``None`` disables the check).
 
     ``register`` (``VectorStore.list_sources()``) lets supersession be applied even when the
     superseding document's own chunks were not retrieved; such documents are reported in
@@ -285,6 +295,10 @@ def resolve_precedence(
     for c in chunks:
         unique.setdefault(c.chunk_id, c)
     flagged = [c.chunk_id for c in unique.values() if c.injection_suspected]
+    best_score = max((c.score for c in unique.values()), default=0.0)
+
+    def relevant(c: RetrievedChunk) -> bool:  # None disables the check (every pair may conflict)
+        return relevance_margin is None or c.score >= best_score - relevance_margin
 
     # Step 1: applicability
     candidates: list[RetrievedChunk] = []
@@ -351,7 +365,8 @@ def resolve_precedence(
     edges: dict[str, set[str]] = {c.chunk_id: set() for c in nodes}
     for i, a in enumerate(nodes):
         for b in nodes[i + 1:]:
-            if a.doc_id != b.doc_id and _differ(qty[a.chunk_id], qty[b.chunk_id]) and same_subject(a, b):
+            if (a.doc_id != b.doc_id and (relevant(a) or relevant(b))
+                    and _differ(qty[a.chunk_id], qty[b.chunk_id]) and same_subject(a, b)):
                 edges[a.chunk_id].add(b.chunk_id)
                 edges[b.chunk_id].add(a.chunk_id)
 

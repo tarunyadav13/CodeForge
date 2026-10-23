@@ -425,3 +425,59 @@ def test_end_to_end_superseder_found_via_register_when_not_retrieved(corpus):
     assert r.winning == [] and r.missing_superseders == ["TEST-CIRC"]
     follow_up = Retriever(corpus, min_score=0.1).retrieve(QUESTION, top_k=10, doc_ids=r.missing_superseders)
     assert ids(resolve_precedence(only_reg + follow_up, AS_OF, register=corpus.list_sources()).winning) == ["TEST-CIRC"]
+
+
+# ---- false conflicts from weakly-related chunks (relevance margin) -----------------------------------
+def _fee(doc_id, amount, score):
+    return mk(doc_id, f"2. The late fee for hostel rent is {amount} rupees per day after the due date.", 3,
+              date(2026, 9, 1), section="2", score=score)
+
+
+def test_weak_unrelated_chunks_that_disagree_do_not_flip_a_clear_answer():
+    """Regression: two hostel-fee chunks (score 0.24) disagreeing with each other turned a clear 0.82 match
+    for a different question into conflict_flagged."""
+    clear = mk("TEST-LIB", "3. The library fine for overdue books is 5 rupees per day.", 1, date(2024, 1, 1),
+               section="3", score=0.82)
+    r = resolve_precedence([clear, _fee("TEST-A", 100, 0.24), _fee("TEST-B", 200, 0.24)], AS_OF)
+    assert r.answer_type_hint == "retrieved_fact" and r.conflicts == [] and r.conflicted == []
+    assert "TEST-LIB" in ids(r.winning)
+
+
+def test_genuine_conflict_between_comparably_relevant_chunks_is_still_flagged():
+    r = resolve_precedence([_fee("TEST-A", 100, 0.80), _fee("TEST-B", 200, 0.71)], AS_OF)  # 0.09 apart < margin
+    assert r.answer_type_hint == "conflict_flagged" and ids(r.conflicted) == ["TEST-A", "TEST-B"]
+
+
+def test_conflict_between_the_two_best_matches_is_flagged_even_with_a_weak_third_chunk():
+    r = resolve_precedence([_fee("TEST-A", 100, 0.80), _fee("TEST-B", 200, 0.80),
+                            mk("TEST-X", "9. Parking permits cost 50 rupees per month.", 3, date(2026, 1, 1), section="9", score=0.1)], AS_OF)
+    assert r.answer_type_hint == "conflict_flagged" and ids(r.conflicted) == ["TEST-A", "TEST-B"]
+
+
+def test_margin_boundary_is_inclusive_and_a_chunk_beyond_it_is_not_a_conflict_party():
+    best = mk("TEST-LIB", "3. The library fine for overdue books is 5 rupees per day.", 1, date(2024, 1, 1), section="3", score=0.80)
+    edge = resolve_precedence([best, _fee("TEST-A", 100, 0.65), _fee("TEST-B", 200, 0.65)], AS_OF)  # exactly 0.15 below
+    assert edge.answer_type_hint == "conflict_flagged"
+    beyond = resolve_precedence([best, _fee("TEST-A", 100, 0.64), _fee("TEST-B", 200, 0.64)], AS_OF)
+    assert beyond.answer_type_hint == "retrieved_fact"
+
+
+def test_a_conflict_counts_when_only_one_side_is_near_the_best_match():
+    """The relevant document can outscore the one it contradicts (circular 0.84 vs older regulation 0.57)."""
+    r = resolve_precedence([replace(CIRC, score=0.84), replace(REG, score=0.57), replace(FAQ, score=0.57)], AS_OF)
+    assert ids(r.winning) == ["TEST-CIRC"] and ("TEST-FAQ", "overridden") in reasons(r)
+
+
+def test_authority_rules_still_apply_between_two_relevant_chunks():
+    strong_reg = mk("TEST-REG", REG_TEXT, 1, date(2024, 7, 1), score=0.85)
+    strong_faq = replace(FAQ, score=0.80)
+    r = resolve_precedence([strong_reg, strong_faq], AS_OF)  # both relevant: authority decides (step 3), unchanged
+    assert ids(r.winning) == ["TEST-REG"] and r.conflicts[0].step == "3 (authority)"
+
+
+def test_margin_can_be_disabled_or_widened():
+    best = mk("TEST-LIB", "3. The library fine for overdue books is 5 rupees per day.", 1, date(2024, 1, 1), section="3", score=0.82)
+    weak = [best, _fee("TEST-A", 100, 0.24), _fee("TEST-B", 200, 0.24)]
+    assert resolve_precedence(weak, AS_OF, relevance_margin=None).answer_type_hint == "conflict_flagged"
+    assert resolve_precedence(weak, AS_OF, relevance_margin=0.9).answer_type_hint == "conflict_flagged"
+    assert resolve_precedence(weak, AS_OF).answer_type_hint == "retrieved_fact"
