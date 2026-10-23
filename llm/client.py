@@ -1,4 +1,4 @@
-﻿"""Provider-neutral LLM interface for Member 1 (RAG / LangGraph).
+"""Provider-neutral LLM interface for Member 1 (RAG / LangGraph).
 
 What lives here
     * the result / error / health types every caller uses,

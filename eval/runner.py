@@ -1,7 +1,7 @@
 """Evaluation runner: sends eval/eval_set.jsonl to a running API and scores the real responses.
 
 Usage:
-    python eval/runner.py                         # API_BASE_URL or http://localhost:8000
+    python eval/runner.py                         # needs API_BASE_URL (no default) or --base-url
     python eval/runner.py --base-url http://localhost:8000 --audit --output eval/results/run.json
     python eval/runner.py --ids EV-005,EV-021     # subset
     python eval/runner.py --validate-only         # check the dataset, no HTTP
@@ -358,7 +358,7 @@ def print_summary(summary: dict, rows: list[dict]) -> None:
 def main(argv: Optional[list[str]] = None, session=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
-    ap.add_argument("--base-url", default=None, help="defaults to API_BASE_URL or http://localhost:8000")
+    ap.add_argument("--base-url", default=None, help="defaults to the API_BASE_URL environment variable (there is no built-in default)")
     ap.add_argument("--output", type=Path, default=None, help="results JSON (default eval/results/eval_<timestamp>.json)")
     ap.add_argument("--ids", default="", help="comma-separated case ids to run")
     ap.add_argument("--category", default="", help="only run this category")
@@ -389,7 +389,11 @@ def main(argv: Optional[list[str]] = None, session=None) -> int:
         from eval.mock_api import MockSession
         session = MockSession(cases)
     mode = "live" if session is None else "mock"
-    client = ApiClient(args.base_url or get_api_base_url(), session=session)
+    base_url = args.base_url or get_api_base_url() or ("http://mock.invalid" if args.mock else "")
+    if not base_url:
+        print("error: no API URL. Pass --base-url or set API_BASE_URL (for example http://127.0.0.1:8000).", file=sys.stderr)
+        return 2
+    client = ApiClient(base_url, session=session)
     started = datetime.now(timezone.utc)
     rows = [run_case(client, c, args.audit) for c in cases]
     summary = summarise(rows, mode)

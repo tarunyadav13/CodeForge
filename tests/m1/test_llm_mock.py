@@ -1,4 +1,4 @@
-﻿"""Offline tests for the provider-neutral layer: MockLLM, factory, error hygiene."""
+"""Offline tests for the provider-neutral layer: MockLLM, factory, error hygiene."""
 import sys
 from typing import Literal, Optional
 

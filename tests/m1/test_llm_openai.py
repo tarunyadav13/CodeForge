@@ -1,4 +1,4 @@
-﻿"""Offline tests for the OpenAI client using a FAKE SDK object (no API key, no network).
+"""Offline tests for the OpenAI client using a FAKE SDK object (no API key, no network).
 
 Where a test needs real SDK classes (exceptions, signatures) it uses the installed
 ``openai`` package; those tests are skipped if the package is absent.

@@ -1,4 +1,4 @@
-﻿"""LLM layer. Two clients live here (see llm/README.md):
+"""LLM layer. Two clients live here (see llm/README.md):
 
 * ``llm.openai_client``    - ``LLMClient`` / ``LLMConfig`` / ``LLMError`` ... (Member 2: API /health, data generation).
 * ``llm.client`` + ``llm.responses_client`` - ``get_llm`` / ``MockLLM`` / ``OpenAIClient`` ... (Member 1: RAG workflow).

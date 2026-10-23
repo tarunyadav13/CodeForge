@@ -1,4 +1,4 @@
-﻿# llm/ — LLM access (Member 1)
+# llm/ — LLM access (Member 1)
 
 One small interface, two implementations:
 

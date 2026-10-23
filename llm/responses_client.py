@@ -1,4 +1,4 @@
-﻿"""OpenAI implementation of ``LLMClient`` (official SDK, Responses API).
+"""OpenAI implementation of ``LLMClient`` (official SDK, Responses API).
 
 Configuration (environment variables only; nothing is hard-coded or stored):
 

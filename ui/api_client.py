@@ -37,7 +37,13 @@ STUDENT_ID_PATTERN = re.compile(r"^S\d{4}$")
 INGEST_FILE_FIELD = "file"
 INGEST_METADATA_FIELD = "metadata"
 
-DEFAULT_API_BASE_URL = "http://localhost:8000"
+# There is deliberately NO default URL: "localhost" on a hosted UI means the UI's own server, so a default would silently
+# point a deployed app at nothing. Configure it (see get_api_base_url); locally: $env:API_BASE_URL = "http://127.0.0.1:8000".
+NOT_CONFIGURED_MESSAGE = (
+    "The API base URL is not configured. Set API_BASE_URL (Streamlit Community Cloud: App settings -> Secrets -> "
+    'API_BASE_URL = "https://your-api.example.com"; locally: $env:API_BASE_URL = "http://127.0.0.1:8000") '
+    "or type it into the sidebar."
+)
 # (connect, read) seconds. /ask runs retrieval + a local LLM, so it gets a long read timeout.
 ASK_TIMEOUT = (5.0, float(os.getenv("ASK_TIMEOUT_SECONDS", "120")))
 SHORT_TIMEOUT = (5.0, 15.0)
@@ -45,7 +51,18 @@ INGEST_TIMEOUT = (5.0, float(os.getenv("INGEST_TIMEOUT_SECONDS", "300")))
 
 
 def get_api_base_url() -> str:
-    return os.getenv("API_BASE_URL", DEFAULT_API_BASE_URL).rstrip("/")
+    """Streamlit secret ``API_BASE_URL``, else the ``API_BASE_URL`` environment variable, else "" (not configured).
+
+    Streamlit Community Cloud also exports top-level secrets as environment variables; the explicit secrets lookup
+    keeps this working when the module runs under Streamlit with a secrets file only.
+    """
+    try:
+        import streamlit as st
+
+        value = st.secrets.get("API_BASE_URL")  # raises if no secrets file exists
+    except Exception:  # noqa: BLE001 - no Streamlit, or no secrets configured: fall through to the environment
+        value = None
+    return str(value or os.getenv("API_BASE_URL") or "").strip().rstrip("/")
 
 
 class ResponseFormatError(ValueError):
@@ -205,6 +222,10 @@ class ApiClient:
 
     def _request(self, method: str, path: str, timeout, **kwargs) -> tuple[ApiResult, Any]:
         """Do the HTTP call. Returns (result, parsed_json). result.ok is False on any failure."""
+        if not self.base_url:
+            return ApiResult(False, error=NOT_CONFIGURED_MESSAGE), None
+        if not self.base_url.startswith(("http://", "https://")):
+            return ApiResult(False, error=f"The API base URL {self.base_url!r} must start with http:// or https://."), None
         url = f"{self.base_url}{path}"
         start = time.perf_counter()
         try:
@@ -214,7 +235,9 @@ class ApiClient:
             return ApiResult(False, error=f"The API did not respond within the timeout ({url}).", latency_ms=ms), None
         except requests.exceptions.ConnectionError:
             ms = (time.perf_counter() - start) * 1000
-            return ApiResult(False, error=f"Cannot reach the API at {self.base_url}. Is uvicorn running?", latency_ms=ms), None
+            hint = (" 'localhost' means the machine running this UI; on a hosted UI use the API's public https URL."
+                    if any(h in self.base_url for h in ("localhost", "127.0.0.1")) else "")
+            return ApiResult(False, error=f"Cannot reach the API at {self.base_url}. Is the API running?{hint}", latency_ms=ms), None
         except requests.exceptions.RequestException as exc:
             ms = (time.perf_counter() - start) * 1000
             return ApiResult(False, error=f"Request failed: {exc.__class__.__name__}", latency_ms=ms), None

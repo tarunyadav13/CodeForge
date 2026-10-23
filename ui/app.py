@@ -1,6 +1,6 @@
 """Streamlit UI for the University Student Services Assistant.
 
-Run:  streamlit run ui/app.py      (API_BASE_URL defaults to http://localhost:8000)
+Run:  streamlit run ui/app.py      (set API_BASE_URL; there is no default)
 
 The UI only displays what the FastAPI backend returns. It never builds an answer of
 its own: when the API fails, the user sees the error, not a guess.
@@ -201,7 +201,7 @@ def render_sidebar() -> tuple[str, date | None]:
         st.divider()
         st.subheader("System status")
         st.session_state.api_base_url = st.text_input(
-            "API base URL", value=st.session_state.api_base_url, help="Defaults to the API_BASE_URL env variable."
+            "API base URL", value=st.session_state.api_base_url, help="From the API_BASE_URL secret or environment variable; empty means not configured."
         ).rstrip("/")
         if st.button("Refresh status", use_container_width=True) or st.session_state.health is None:
             refresh_health()
