@@ -4,7 +4,7 @@
 
 - doc_id: SYN-FAQ-ATT-65
 - Issuer: Synthetic Test University, Student Council help desk (fictional)
-- Authority level: 5 (FAQ, informational only) - assumed for the fixture
+- Authority level: 4 (FAQ; Annex A level 4 = handbooks and FAQs)
 - Version: 1.0
 - Effective from: 2024-01-10
 - Applies to: all programmes, all batches

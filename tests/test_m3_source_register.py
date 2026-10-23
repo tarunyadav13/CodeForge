@@ -71,9 +71,9 @@ def test_real_and_synthetic_provenance(r):
 
 def test_supersession_targets_exist_and_conflict_scenario_is_intact():
     by = {r["doc_id"]: r for r in rows()}
-    assert by["SYN-CIRC-ATT-80"]["supersedes"] == "SYN-REG-ATT-75"
+    assert by["SYN-CIRC-ATT-80"]["supersedes"] == "SYN-REG-ATT-75#4.1"  # clause-scoped, not the whole regulation (its placement rule 7.1 stays in force)
     assert by["SYN-REG-ATT-75"]["effective_from"] < by["SYN-CIRC-ATT-80"]["effective_from"]
-    assert by["SYN-FAQ-ATT-65"]["authority_level"] == "5"
+    assert by["SYN-FAQ-ATT-65"]["authority_level"] == "4"  # Annex A: handbooks and FAQs are level 4
     a, b = by["SYN-CIRC-FEE-A"], by["SYN-CIRC-FEE-B"]
     assert (a["authority_level"], a["effective_from"], a["supersedes"]) == (b["authority_level"], b["effective_from"], b["supersedes"])
 
