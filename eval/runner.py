@@ -5,6 +5,7 @@ Usage:
     python eval/runner.py --base-url http://localhost:8000 --audit --output eval/results/run.json
     python eval/runner.py --ids EV-005,EV-021     # subset
     python eval/runner.py --validate-only         # check the dataset, no HTTP
+    python eval/runner.py --mock                  # MOCK-ONLY canned replay; labelled in output and JSON
 
 Every metric comes from actual API responses. A check whose expected value is not known
 yet (fixture pending) is reported as skipped, never as passed. Exit code is 1 if any case
@@ -154,8 +155,7 @@ def score_case(case: dict, result) -> dict:
     # Content
     contains = case.get("expected_answer_contains") or []
     if contains:
-        text = resp["answer"].lower()
-        missing = [s for s in contains if s.lower() not in text]
+        missing = [s for s in contains if not contains_term(resp["answer"], s)]
         checks.append(_check("answer_contains", "fail" if missing else "pass",
                              f"missing {missing}" if missing else ""))
     forbidden = case.get("forbidden_strings") or []
@@ -243,10 +243,13 @@ def metric(value, reason_if_na: str) -> dict:
     return {"value": value, "note": "" if value is not None else reason_if_na}
 
 
-def summarise(rows: list[dict]) -> dict:
+def summarise(rows: list[dict], mode: str = "live") -> dict:
     statuses = [r["status"] for r in rows]
     answered = [r for r in rows if r["status"] != "ERROR"]
-    latencies = [r["latency_ms"] for r in rows if r["http_status"] is not None]
+    # In-process mock calls take microseconds; reporting that as latency would be misleading.
+    latencies = [] if mode != "live" else [r["latency_ms"] for r in rows if r["http_status"] is not None]
+    leak_checks = [c for r in rows for c in r["checks"] if c["check"] == "no_cross_student_tools"]
+    type_ok = [any(c["check"] == "answer_type" and c["status"] == "pass" for c in r["checks"]) for r in rows]
 
     abstain_cases = [r for r in rows if set(r["expected_answer_type"]) <= ABSTAIN_TYPES]
     answer_cases = [r for r in rows if not set(r["expected_answer_type"]) & ABSTAIN_TYPES]
@@ -261,12 +264,14 @@ def summarise(rows: list[dict]) -> dict:
     tokens = [r["audit_tokens"] for r in rows if isinstance(r.get("audit_tokens"), int)]
 
     return {
+        "mode": mode,
         "cases": len(rows),
         "pass": statuses.count("PASS"), "fail": statuses.count("FAIL"), "error": statuses.count("ERROR"),
         "skipped_checks": sum(c["status"] == "skipped" for r in rows for c in r["checks"]),
         "needs_human_review": sum(1 for r in rows if r.get("human_review") and r["status"] != "ERROR"),
         "metrics": {
-            "answer_type_accuracy": metric(_check_rate(rows, ("answer_type",)), "no responses"),
+            # Errored cases (API down, malformed response) count as wrong here, not as missing.
+            "answer_type_accuracy": metric(_rate(type_ok), "no cases"),
             "answer_correctness_auto": metric(_check_rate(answered, ("answer_contains", "no_forbidden_content")),
                                               "no case has machine-checkable expected content yet"),
             "citation_correctness": metric(_check_rate(answered, ("citations_present", "citation_metadata_complete", "citation_doc_ids")),
@@ -278,11 +283,11 @@ def summarise(rows: list[dict]) -> dict:
                                             "no answerable cases answered"),
             "not_found_exact_message": metric(_check_rate(answered, ("not_found_exact_message",)), "no not_found responses"),
             "tool_correctness": metric(_check_rate(answered, ("tools_invoked", "tool_output")), "no tool cases answered"),
-            "cross_student_leaks": metric(sum(1 for r in rows for c in r["checks"] if c["check"] == "no_cross_student_tools" and c["status"] == "fail"),
-                                          ""),
+            "cross_student_leaks": metric(sum(c["status"] == "fail" for c in leak_checks) if leak_checks else None,
+                                          "no answered case produced a cross-student check"),
             "retrieval_hit_rate": metric(_rate(hits), "needs --audit with sources_retrieved and fixture-ready expected doc_ids"),
-            "latency_p50_ms": metric(_percentile(latencies, 50), "no HTTP responses"),
-            "latency_p95_ms": metric(_percentile(latencies, 95), "no HTTP responses"),
+            "latency_p50_ms": metric(_percentile(latencies, 50), "no HTTP responses (always N/A in mock mode)"),
+            "latency_p95_ms": metric(_percentile(latencies, 95), "no HTTP responses (always N/A in mock mode)"),
             "llm_calls_total": metric(sum(llm_calls) if llm_calls and any(llm_calls) else None,
                                       "needs --audit and non-zero llm_calls in audit records (all zero = not instrumented)"),
             "tokens_total": metric(sum(tokens) if tokens and any(tokens) else None, "needs --audit and non-zero tokens in audit records"),
@@ -326,7 +331,13 @@ def _git_commit() -> Optional[str]:
         return None
 
 
+MOCK_BANNER = ("*** MOCK-ONLY RUN: responses are canned or injected (see eval/mock_api.py), not the real "
+               "system. This checks the dataset and scoring code, NOT the assistant. ***")
+
+
 def print_summary(summary: dict, rows: list[dict]) -> None:
+    if summary["mode"] != "live":
+        print("\n" + MOCK_BANNER)
     print(f"\n{'ID':<8} {'STATUS':<6} {'EXPECTED':<34} {'ACTUAL':<22} {'MS':>7}  REASON")
     for r in rows:
         reasons = "; ".join(f"{c['check']}: {c['reason']}" for c in r["checks"] if c["status"] == "fail")
@@ -334,6 +345,11 @@ def print_summary(summary: dict, rows: list[dict]) -> None:
               f"{str(r['actual_answer_type']):<22} {r['latency_ms']:>7.0f}  {reasons[:110]}")
     print(f"\nCases {summary['cases']}: {summary['pass']} pass, {summary['fail']} fail, {summary['error']} error; "
           f"{summary['skipped_checks']} checks skipped (fixtures pending); {summary['needs_human_review']} cases need human review")
+    if summary["error"]:
+        print(f"  WARNING: {summary['error']} case(s) ERRORED (no valid response). Only answer_type_accuracy "
+              "counts them as wrong; the other rates exclude them, so do not read those as system quality.")
+    if summary["mode"] != "live":
+        print("  " + MOCK_BANNER)
     for name, m in summary["metrics"].items():
         val = "N/A" if m["value"] is None else m["value"]
         print(f"  {name:<26} {val}" + (f"  ({m['note']})" if m["value"] is None else ""))
@@ -348,6 +364,8 @@ def main(argv: Optional[list[str]] = None, session=None) -> int:
     ap.add_argument("--category", default="", help="only run this category")
     ap.add_argument("--audit", action="store_true", help="also fetch /audit/{trace_id} for retrieval hit rate, llm calls, tokens")
     ap.add_argument("--validate-only", action="store_true")
+    ap.add_argument("--mock", action="store_true",
+                    help="MOCK-ONLY: replay canned responses (no API needed); output is labelled as mock")
     args = ap.parse_args(argv)
 
     try:
@@ -367,10 +385,14 @@ def main(argv: Optional[list[str]] = None, session=None) -> int:
         print("No cases selected.", file=sys.stderr)
         return 2
 
+    if args.mock and session is None:
+        from eval.mock_api import MockSession
+        session = MockSession(cases)
+    mode = "live" if session is None else "mock"
     client = ApiClient(args.base_url or get_api_base_url(), session=session)
     started = datetime.now(timezone.utc)
     rows = [run_case(client, c, args.audit) for c in cases]
-    summary = summarise(rows)
+    summary = summarise(rows, mode)
 
     out = args.output or DEFAULT_OUTPUT_DIR / f"eval_{started.strftime('%Y%m%dT%H%M%SZ')}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -378,7 +400,9 @@ def main(argv: Optional[list[str]] = None, session=None) -> int:
         "run": {
             "started_at": started.isoformat(), "base_url": client.base_url, "git_commit": _git_commit(),
             "dataset": str(args.dataset), "dataset_sha256": hashlib.sha256(args.dataset.read_bytes()).hexdigest(),
-            "audit_enabled": args.audit,
+            "audit_enabled": args.audit, "mode": mode,
+            "mode_note": ("MOCK-ONLY: canned or injected responses, not the real system" if mode != "live"
+                          else "live HTTP calls to base_url"),
         },
         "summary": summary, "results": rows,
     }

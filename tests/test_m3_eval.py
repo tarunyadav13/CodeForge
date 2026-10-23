@@ -194,7 +194,8 @@ def test_runner_end_to_end_report(tmp_path, capsys):
     assert m["citation_correctness"]["value"] == 1.0
     assert m["retrieval_hit_rate"]["value"] == 1.0
     assert m["llm_calls_total"]["value"] == 3 and m["tokens_total"]["value"] == 360
-    assert m["latency_p50_ms"]["value"] is not None
+    # An injected fake session is a mock run: latency is deliberately reported as N/A.
+    assert report["run"]["mode"] == "mock" and m["latency_p50_ms"]["value"] is None
     assert report["run"]["dataset_sha256"]
     ask_calls = [c for c in session.calls if c["url"].endswith("/ask")]
     assert all(c["headers"] == {} for c in ask_calls)
