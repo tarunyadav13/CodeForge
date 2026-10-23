@@ -190,3 +190,29 @@ def test_conflict_helpers():
 
 def test_format_value():
     assert format_value(74.0) == "74" and format_value(74.25) == "74.25" and format_value({"a": 1}) == '{"a": 1}'
+
+
+# --- untrusted document content (R8) ---------------------------------------------------------
+
+from ui.formatting import safe_text  # noqa: E402
+
+
+def test_safe_text_removes_images_and_defangs_links():
+    out = safe_text("See ![x](https://evil.test/p.png?d=secret) and [click](https://evil.test/a) now")
+    assert "![" not in out and "](https://" not in out
+    assert "image not shown: x" in out and "click (`https://evil.test/a`)" in out
+    assert safe_text("![a][ref]") == "[image not shown: a]"
+    assert safe_text("Minimum attendance is 75% (clause 5.8).") == "Minimum attendance is 75% (clause 5.8)."
+    assert safe_text(NOT_FOUND) == NOT_FOUND
+
+
+@pytest.mark.parametrize("answer_type", ["retrieved_fact", "calculated", "conflict_flagged"])
+def test_ui_never_renders_markdown_images_from_answers(backend, answer_type):
+    evil = "Ok. ![t](https://evil.test/leak.png?q=abc) [more](https://evil.test/x)"
+    backend["ask"] = ask_body(answer_type, answer=evil, explanation=evil, citations=[CITATION],
+                              conflicts_detected=[{"summary": evil, "doc_ids": ["A", "B"]}])
+    at = ask(run_app(), "question?")
+    assert not at.exception
+    text = all_text(at)
+    assert "![" not in text and "](https://evil.test" not in text
+    assert "image not shown" in text

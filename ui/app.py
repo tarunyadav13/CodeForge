@@ -31,6 +31,7 @@ from ui.formatting import (  # noqa: E402
     conflict_is_unresolved,
     conflict_summary,
     kv_rows,
+    safe_text,
 )
 
 st.set_page_config(page_title="Student Services Assistant", page_icon="🎓", layout="wide")
@@ -69,7 +70,7 @@ def render_badge(answer_type: str) -> None:
 
 def render_answer_body(resp: dict) -> None:
     answer_type = resp["answer_type"]
-    answer = resp["answer"]
+    answer = safe_text(resp["answer"])  # untrusted: derived from document text
     if answer_type == "refused":
         st.error(answer, icon="🚫")
     elif answer_type == "not_found":
@@ -133,9 +134,9 @@ def render_conflicts(conflicts: list[dict], answer_type: str) -> None:
     with st.expander(title, expanded=True):
         for c in conflicts:
             if conflict_is_unresolved(c, answer_type):
-                st.warning(f"**Unresolved:** {conflict_summary(c)}", icon="⚠️")
+                st.warning(f"**Unresolved:** {safe_text(conflict_summary(c))}", icon="⚠️")
             else:
-                st.info(f"**Resolved:** {conflict_summary(c)}", icon="⚖️")
+                st.info(f"**Resolved:** {safe_text(conflict_summary(c))}", icon="⚖️")
             st.json(c, expanded=False)
 
 
@@ -143,7 +144,7 @@ def render_response(resp: dict, warnings: list[str], latency_ms: float) -> None:
     render_badge(resp["answer_type"])
     render_answer_body(resp)
     if resp.get("explanation"):
-        st.caption(f"Explanation: {resp['explanation']}")
+        st.caption(f"Explanation: {safe_text(resp['explanation'])}")
     render_conflicts(resp["conflicts_detected"], resp["answer_type"])
     if resp["citations"]:
         render_citations(resp["citations"])

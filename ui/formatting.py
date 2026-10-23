@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 # label, st.badge colour, one-line meaning shown under the badge
@@ -21,6 +22,24 @@ STATUS_ICONS = {
     "not_configured": "⚪",
     "unknown": "⚫",
 }
+
+
+_MD_IMAGE = re.compile(r"!\[([^\]]*)\](?:\([^)]*\)|\[[^\]]*\])")
+_MD_LINK = re.compile(r"\[([^\]]*)\]\(\s*<?([^)\s>]+)[^)]*\)")
+
+
+def safe_text(text: str) -> str:
+    """Neutralise markdown that could make the browser fetch or open a URL from untrusted text.
+
+    Answers and explanations are derived from document text, which is untrusted (R8). Streamlit does
+    not render raw HTML here, but it does render markdown images (fetched automatically, which can
+    leak data in the URL) and clickable links. Images are replaced by a placeholder; links are shown
+    as text with the target in a code span, so nothing is fetched or hidden behind a label.
+    """
+    if not isinstance(text, str):
+        return str(text)
+    text = _MD_IMAGE.sub(lambda m: f"[image not shown: {m.group(1) or 'no description'}]", text)
+    return _MD_LINK.sub(lambda m: f"{m.group(1)} (`{m.group(2)}`)", text)
 
 
 def answer_type_display(answer_type: str) -> tuple[str, str, str]:
