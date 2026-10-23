@@ -34,6 +34,7 @@ from typing import Any, Callable, Optional
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 from pydantic import ValidationError
 
 from api import personal
@@ -44,7 +45,7 @@ from db import data_access as da
 log = logging.getLogger("api")
 ROOT = Path(__file__).resolve().parents[1]
 STUDENT_ID_RE = re.compile(r"^S\d{4}$")
-ALLOWED_UPLOAD_SUFFIXES = {".pdf", ".txt", ".md", ".docx", ".html", ".htm"}
+ALLOWED_UPLOAD_SUFFIXES = {".pdf", ".txt", ".md"}  # what rag.ingest can read; docx/html would only fail later
 DEFAULT_MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 SOURCE_FIELDS = tuple(SourceRecord.model_fields)
 _AUTO = object()
@@ -81,10 +82,13 @@ def create_app(db_path: Any = None, *, graph_runner: Any = _AUTO, ingest_handler
     hooks: dict[str, tuple[Optional[Callable[..., Any]], str]] = {}
     hooks["graph"] = _try_import("graph.workflow", "run_graph") if graph_runner is _AUTO else \
         (graph_runner, "injected" if graph_runner else "disabled")
-    hooks["ingest"] = _try_import("rag.ingest", "ingest_document") if ingest_handler is _AUTO else \
+    hooks["ingest"] = _try_import("rag.service", "ingest_file") if ingest_handler is _AUTO else \
         (ingest_handler, "injected" if ingest_handler else "disabled")
-    hooks["vector"] = _try_import("rag.retriever", "health") if vector_health is _AUTO else \
+    hooks["vector"] = _try_import("rag.service", "health") if vector_health is _AUTO else \
         (vector_health, "injected" if vector_health else "disabled")
+    # "already ingested" must mean the vector store really holds the chunks, not just a register row; only wired
+    # when the real ingestion hook is in use (tests that inject a handler keep the hash-only behaviour)
+    hooks["has_chunks"] = _try_import("rag.service", "has_document") if ingest_handler is _AUTO else (None, "not used")
     app.state.hooks = hooks
 
     def dbp() -> Any:
@@ -301,7 +305,9 @@ def create_app(db_path: Any = None, *, graph_runner: Any = _AUTO, ingest_handler
         sha = hashlib.sha256(data).hexdigest()
         with da.db_session(dbp(), read_only=True) as conn:
             existing = da.get_source(conn, record.doc_id)
-        if existing and existing.get("content_sha256") == sha and (existing.get("chunks_indexed") or 0) > 0:
+        has_chunks = app.state.hooks["has_chunks"][0]
+        indexed = has_chunks(record.doc_id) if has_chunks is not None else True
+        if existing and existing.get("content_sha256") == sha and (existing.get("chunks_indexed") or 0) > 0 and indexed:
             return IngestResponse(doc_id=record.doc_id, chunks_indexed=existing["chunks_indexed"], status="already_ingested")
         safe = re.sub(r"[^A-Za-z0-9._-]", "_", filename) or "upload"
         target_dir = app.state.upload_dir / sha[:16]
@@ -309,9 +315,11 @@ def create_app(db_path: Any = None, *, graph_runner: Any = _AUTO, ingest_handler
         path = target_dir / safe
         path.write_bytes(data)
         try:
-            result = handler(str(path), record.model_dump(mode="json"))
+            result = await run_in_threadpool(handler, str(path), record.model_dump(mode="json"))
             chunks = int(result["chunks_indexed"])
             status = str(result.get("status", "ingested"))
+        except ValueError as exc:  # rag.ingest.IngestError: unreadable / empty / unsupported document
+            raise HTTPException(status_code=422, detail=f"Document could not be ingested: {exc}") from None
         except Exception as exc:
             log.error("ingest handler failed doc=%s err=%s", record.doc_id, type(exc).__name__)
             raise HTTPException(status_code=500, detail="Ingestion failed; the document was not registered.") from None
