@@ -481,3 +481,14 @@ def test_margin_can_be_disabled_or_widened():
     assert resolve_precedence(weak, AS_OF, relevance_margin=None).answer_type_hint == "conflict_flagged"
     assert resolve_precedence(weak, AS_OF, relevance_margin=0.9).answer_type_hint == "conflict_flagged"
     assert resolve_precedence(weak, AS_OF).answer_type_hint == "retrieved_fact"
+
+
+def test_a_superseded_top_scorer_does_not_hide_a_conflict_between_its_replacement_and_a_lower_source():
+    """Found end to end: the superseded regulation matched the question best (0.71), the circular that replaces it
+    scored 0.55 and the contradicting FAQ 0.50. Measured against the superseded chunk, neither looked relevant, so
+    the FAQ stayed 'winning' next to the circular."""
+    reg = replace(REG, score=0.71)
+    circ = replace(CIRC, score=0.55)
+    faq = replace(FAQ, score=0.50)
+    r = resolve_precedence([reg, circ, faq], AS_OF)
+    assert ids(r.winning) == ["TEST-CIRC"] and ("TEST-FAQ", "overridden") in reasons(r)

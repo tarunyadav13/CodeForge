@@ -197,6 +197,9 @@ class ConflictRecord:
         return {
             "outcome": self.outcome, "step": self.step, "explanation": self.explanation,
             "winning": list(self.winning), "overridden": list(self.overridden),
+            # aliases the Streamlit UI reads (docs/FRONTEND_EVAL_HANDOFF.md): doc_ids + resolved/status
+            "doc_ids": sorted({m["doc_id"] for m in (*self.winning, *self.overridden)}),
+            "resolved": self.outcome == "resolved", "status": self.outcome, "summary": self.explanation,
         }
 
 
@@ -295,10 +298,6 @@ def resolve_precedence(
     for c in chunks:
         unique.setdefault(c.chunk_id, c)
     flagged = [c.chunk_id for c in unique.values() if c.injection_suspected]
-    best_score = max((c.score for c in unique.values()), default=0.0)
-
-    def relevant(c: RetrievedChunk) -> bool:  # None disables the check (every pair may conflict)
-        return relevance_margin is None or c.score >= best_score - relevance_margin
 
     # Step 1: applicability
     candidates: list[RetrievedChunk] = []
@@ -349,6 +348,13 @@ def resolve_precedence(
         if by[0] in from_register:
             needed.add(by[0])
     retrieved_docs = {c.doc_id for c in unique.values()}
+
+    # Relevance baseline: the best chunk that is still CURRENT. A superseded regulation often matches the question best,
+    # and measuring against it would wrongly hide a conflict between its replacement and a contradicting lower source.
+    best_score = max((c.score for c in current), default=0.0)
+
+    def relevant(c: RetrievedChunk) -> bool:  # None disables the check (every pair may conflict)
+        return relevance_margin is None or c.score >= best_score - relevance_margin
     missing = sorted(d for d in needed if d not in retrieved_docs)
 
     # Level 5 is informational only
