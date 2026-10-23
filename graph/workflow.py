@@ -1,8 +1,8 @@
 """Fixed LangGraph workflow behind POST /ask (api/main.py calls ``run_graph``).
 
-    route --personal--> personal --answered--> END
-      |                    '--not handled--> retrieve
-      '--policy--------> retrieve -> precedence -> synthesize -> guard -> END
+    route --refused (instructions inside the question)--> END
+      |--personal--> personal --> END   (answered, refused or clarification_needed; never falls back to documents)
+      '--policy----> retrieve -> precedence -> synthesize -> guard -> END
 
 One deterministic pipeline, no agents. What each step is allowed to do:
 
@@ -43,6 +43,17 @@ REFUSAL_NO_IDENTITY = ("This question is about your personal records, but no stu
                        "Please sign in so your student ID can be sent in the X-Student-Id header.")
 CLARIFY_SCOPE = ("The answer depends on your programme and admission year, and no student identity was provided. "
                  "Please sign in so your student ID can be sent in the X-Student-Id header.")
+REFUSAL_INJECTION = ("I can't follow instructions that are written inside a question. Please ask your question about "
+                     "university services directly.")
+CLARIFY_PERSONAL = ("I couldn't tell which of your records or which rule you mean. Please name the course or the topic, for "
+                    "example: 'Am I eligible to appear in the CS201 end-semester exam?'")
+# Instructions aimed at the assistant itself, in the USER'S question (deliberately narrower than rag.safety, which screens
+# document text: phrases like "act as" are ordinary in student questions).
+_QUESTION_INJECTION = re.compile(
+    r"(ignore|disregard|forget)\s+(all\s+|any\s+|the\s+)?(previous|prior|above|earlier|your)\s+(instructions|rules|prompts?)"
+    r"|you\s+are\s+now|(system|developer)\s+prompt|(admin|developer|debug|god)\s+mode|jailbreak",
+    re.IGNORECASE)
+
 SYNTH_RULES = (EVIDENCE_RULE + " Set answerable=false if the evidence does not actually answer the question (for example "
                "it is about a related topic, a different year or a different document). Otherwise set answerable=true "
                "and answer in 1-3 sentences using only numbers, names and dates that appear in the evidence.")
@@ -115,6 +126,9 @@ def _response(state: State, answer: str, answer_type: str, *, citations: Optiona
 
 # ---------------------------------------------------------------------------------------- nodes
 def route(state: State) -> dict[str, Any]:
+    if _QUESTION_INJECTION.search(state["question"]):
+        return _response(state, REFUSAL_INJECTION, "refused", explanation=REFUSAL_INJECTION,
+                         question_category="refused_prompt_injection", model="none (input screen)")
     return {"personal": personal.is_personal(state["question"])}
 
 
@@ -124,8 +138,9 @@ def personal_node(state: State) -> dict[str, Any]:
         return _response(state, REFUSAL_NO_IDENTITY, "refused", explanation=REFUSAL_NO_IDENTITY,
                          question_category="refused_no_identity", model="none (identity check)")
     outcome = personal.answer_personal(state["question"], sid, state["as_of"])
-    if outcome is None:
-        return {}  # not something the deterministic tools handle: try the documents
+    if outcome is None:  # a personal question the tools cannot place: ask, do not answer from unrelated documents
+        return _response(state, CLARIFY_PERSONAL, "clarification_needed", explanation=CLARIFY_PERSONAL,
+                         question_category="personal_unclear", model="none (deterministic tools)")
     resp = AskResponse(
         trace_id=da.new_trace_id(), answer=outcome.answer, answer_type=outcome.answer_type, citations=outcome.citations,
         tools_invoked=[{"tool": t["tool"], "input": t["input"], "output": t["output"]} for t in outcome.tools],
@@ -170,8 +185,10 @@ def synthesize(state: State) -> dict[str, Any]:
         return _response(state, answer, "conflict_flagged", citations=[c.to_citation() for c in result.conflicted],
                          explanation=result.decision,
                          conflicts=result.conflicts_detected, **meta)
-    best = max(c.score for c in result.winning)
-    evidence = [c for c in sorted(result.winning, key=lambda c: -c.score) if c.score >= best - EVIDENCE_MARGIN][:MAX_EVIDENCE]
+    # a citation must point at a section or page (brief R2): prefer clause chunks over unlabelled banner/preamble chunks
+    pool = [c for c in result.winning if c.section or c.page] or result.winning
+    best = max(c.score for c in pool)
+    evidence = [c for c in sorted(pool, key=lambda c: -c.score) if c.score >= best - EVIDENCE_MARGIN][:MAX_EVIDENCE]
     draft = None
     unchecked = " No LLM checked that this text answers the question; it is the closest cited text."
     llm_note = "No LLM configured." + unchecked
@@ -216,11 +233,9 @@ def guard(state: State) -> dict[str, Any]:
 
 
 def _after_route(state: State) -> str:
+    if state.get("response") is not None:  # refused by the input screen
+        return END
     return "personal" if state.get("personal") else "retrieve"
-
-
-def _after_personal(state: State) -> str:
-    return END if state.get("response") is not None else "retrieve"
 
 
 def build_graph():
@@ -229,8 +244,8 @@ def build_graph():
                      ("precedence", precedence), ("synthesize", synthesize), ("guard", guard)):
         g.add_node(name, fn)
     g.add_edge(START, "route")
-    g.add_conditional_edges("route", _after_route, {"personal": "personal", "retrieve": "retrieve"})
-    g.add_conditional_edges("personal", _after_personal, {END: END, "retrieve": "retrieve"})
+    g.add_conditional_edges("route", _after_route, {END: END, "personal": "personal", "retrieve": "retrieve"})
+    g.add_edge("personal", END)
     g.add_edge("retrieve", "precedence")
     g.add_edge("precedence", "synthesize")
     g.add_edge("synthesize", "guard")
