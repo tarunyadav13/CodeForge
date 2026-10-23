@@ -1,0 +1,31 @@
+{
+  "response": {
+    "trace_id": "b6bee57804f7",
+    "answer": "I can only share your own records. I cannot provide another student's attendance, results or other personal data.",
+    "answer_type": "refused",
+    "citations": [],
+    "tools_invoked": [],
+    "applied_rules": [],
+    "conflicts_detected": [],
+    "explanation": "I can only share your own records. I cannot provide another student's attendance, results or other personal data.",
+    "as_of_date": "2026-10-06"
+  },
+  "audit_record": {
+    "trace_id": "b6bee57804f7",
+    "timestamp": "2026-10-23T08:29:59Z",
+    "student_id": "S1001",
+    "question_category": "refused_cross_student",
+    "sources_retrieved": [],
+    "precedence_decision": null,
+    "tools_invoked": [],
+    "answer_type": "refused",
+    "model": "none (deterministic tools)",
+    "llm_calls": 0,
+    "tokens": 0,
+    "latency_ms": 0,
+    "applied_rules": [],
+    "conflicts_detected": [],
+    "citations": [],
+    "as_of_date": "2026-10-06"
+  }
+}

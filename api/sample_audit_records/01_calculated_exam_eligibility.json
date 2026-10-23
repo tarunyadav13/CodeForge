@@ -1,0 +1,190 @@
+{
+  "response": {
+    "trace_id": "d73f01fb530d",
+    "answer": "No, you are not eligible. Attendance in CS201 is 77.5% (31/40 classes); this does not meet the requirement >= 80% in FIX-ACAD-CIRC-2026-08 clause 1 (rule ATT-MIN-02).",
+    "answer_type": "calculated",
+    "citations": [
+      {
+        "doc_id": "FIX-ACAD-CIRC-2026-08",
+        "title": "Synthetic Attendance Circular (test fixture)",
+        "section": "1",
+        "page": null,
+        "version": "1.0",
+        "effective_from": "2026-08-01"
+      }
+    ],
+    "tools_invoked": [
+      {
+        "tool": "check_exam_eligibility",
+        "input": {
+          "student_id": "S1002",
+          "course_code": "CS201",
+          "as_of_date": "2026-10-06"
+        },
+        "output": {
+          "student_id": "S1002",
+          "course_code": "CS201",
+          "course_name": "Data Structures",
+          "as_of_date": "2026-10-06",
+          "status": "ok",
+          "result": "NOT_ELIGIBLE",
+          "reason": "Attendance in CS201 is 77.5% (31/40 classes); this does not meet the requirement >= 80% in FIX-ACAD-CIRC-2026-08 clause 1 (rule ATT-MIN-02).",
+          "rule_id": "ATT-MIN-02",
+          "threshold": ">= 80",
+          "rule": {
+            "rule_id": "ATT-MIN-02",
+            "parameter": "min_attendance_pct",
+            "operator": ">=",
+            "value": "80",
+            "description": "Minimum attendance to appear in end-semester exams (raised by circular)",
+            "scope_programmes": "ALL",
+            "scope_batches": "ALL",
+            "rule_effective_from": "2026-08-01",
+            "rule_effective_to": null,
+            "source_doc_id": "FIX-ACAD-CIRC-2026-08",
+            "source_section": "1",
+            "source_title": "Synthetic Attendance Circular (test fixture)",
+            "source_version": "1.0",
+            "source_authority_level": 2,
+            "source_effective_from": "2026-08-01",
+            "source_synthetic": "Y"
+          },
+          "applied_rules": [
+            {
+              "rule_id": "ATT-MIN-02",
+              "value": ">= 80",
+              "source_doc_id": "FIX-ACAD-CIRC-2026-08"
+            }
+          ],
+          "rule_resolution": {
+            "status": "ok",
+            "resolver": "single_applicable_rule",
+            "reason": "Exactly one rule is in force for this student on the as-of date.",
+            "candidates": [
+              "ATT-MIN-02"
+            ]
+          },
+          "upcoming_rules": [],
+          "skipped_rules": [],
+          "attendance": {
+            "classes_held": 40,
+            "classes_attended": 31,
+            "attendance_pct": 77.5
+          },
+          "actual_value": 77.5
+        }
+      }
+    ],
+    "applied_rules": [
+      {
+        "rule_id": "ATT-MIN-02",
+        "value": ">= 80",
+        "source_doc_id": "FIX-ACAD-CIRC-2026-08"
+      }
+    ],
+    "conflicts_detected": [],
+    "explanation": "Attendance in CS201 is 77.5% (31/40 classes); this does not meet the requirement >= 80% in FIX-ACAD-CIRC-2026-08 clause 1 (rule ATT-MIN-02).",
+    "as_of_date": "2026-10-06"
+  },
+  "audit_record": {
+    "trace_id": "d73f01fb530d",
+    "timestamp": "2026-10-23T08:29:59Z",
+    "student_id": "S1002",
+    "question_category": "personal_exam_eligibility",
+    "sources_retrieved": [
+      {
+        "doc_id": "FIX-ACAD-CIRC-2026-08",
+        "section": "1",
+        "score": null
+      }
+    ],
+    "precedence_decision": "Exactly one rule is in force for this student on the as-of date.",
+    "tools_invoked": [
+      {
+        "tool": "check_exam_eligibility",
+        "status": "ok",
+        "input": {
+          "student_id": "S1002",
+          "course_code": "CS201",
+          "as_of_date": "2026-10-06"
+        },
+        "output": {
+          "student_id": "S1002",
+          "course_code": "CS201",
+          "course_name": "Data Structures",
+          "as_of_date": "2026-10-06",
+          "status": "ok",
+          "result": "NOT_ELIGIBLE",
+          "reason": "Attendance in CS201 is 77.5% (31/40 classes); this does not meet the requirement >= 80% in FIX-ACAD-CIRC-2026-08 clause 1 (rule ATT-MIN-02).",
+          "rule_id": "ATT-MIN-02",
+          "threshold": ">= 80",
+          "rule": {
+            "rule_id": "ATT-MIN-02",
+            "parameter": "min_attendance_pct",
+            "operator": ">=",
+            "value": "80",
+            "description": "Minimum attendance to appear in end-semester exams (raised by circular)",
+            "scope_programmes": "ALL",
+            "scope_batches": "ALL",
+            "rule_effective_from": "2026-08-01",
+            "rule_effective_to": null,
+            "source_doc_id": "FIX-ACAD-CIRC-2026-08",
+            "source_section": "1",
+            "source_title": "Synthetic Attendance Circular (test fixture)",
+            "source_version": "1.0",
+            "source_authority_level": 2,
+            "source_effective_from": "2026-08-01",
+            "source_synthetic": "Y"
+          },
+          "applied_rules": [
+            {
+              "rule_id": "ATT-MIN-02",
+              "value": ">= 80",
+              "source_doc_id": "FIX-ACAD-CIRC-2026-08"
+            }
+          ],
+          "rule_resolution": {
+            "status": "ok",
+            "resolver": "single_applicable_rule",
+            "reason": "Exactly one rule is in force for this student on the as-of date.",
+            "candidates": [
+              "ATT-MIN-02"
+            ]
+          },
+          "upcoming_rules": [],
+          "skipped_rules": [],
+          "attendance": {
+            "classes_held": 40,
+            "classes_attended": 31,
+            "attendance_pct": 77.5
+          },
+          "actual_value": 77.5
+        }
+      }
+    ],
+    "answer_type": "calculated",
+    "model": "none (deterministic tools)",
+    "llm_calls": 0,
+    "tokens": 0,
+    "latency_ms": 2,
+    "applied_rules": [
+      {
+        "rule_id": "ATT-MIN-02",
+        "value": ">= 80",
+        "source_doc_id": "FIX-ACAD-CIRC-2026-08"
+      }
+    ],
+    "conflicts_detected": [],
+    "citations": [
+      {
+        "doc_id": "FIX-ACAD-CIRC-2026-08",
+        "title": "Synthetic Attendance Circular (test fixture)",
+        "section": "1",
+        "page": null,
+        "version": "1.0",
+        "effective_from": "2026-08-01"
+      }
+    ],
+    "as_of_date": "2026-10-06"
+  }
+}

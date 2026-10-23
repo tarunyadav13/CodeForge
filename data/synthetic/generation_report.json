@@ -1,0 +1,119 @@
+{
+  "attendance_pct": {
+    "max": 100.0,
+    "mean": 77.52,
+    "min": 0.0
+  },
+  "cgpa": {
+    "max": 9.32,
+    "min": 5.25
+  },
+  "counts": {
+    "attendance_rows": 139,
+    "courses": 8,
+    "result_rows": 76,
+    "rules": 6,
+    "source_rows": 3,
+    "students": 36,
+    "students_with_llm_drafted_name_and_cgpa": 0
+  },
+  "csv_sha256": {
+    "attendance": "254337da3f85bb43a410eeda2dc9c0638737fce02f85bf30e75985397290f51c",
+    "courses": "1a4e52194f8ea0f9e7564d472df294c2cbe6aae8f09debb2e221b47bf643c7a6",
+    "results": "19e8e3505d7c4f497e23586c19027046fd68dcfefc1661a6970218355da267b1",
+    "rule_registry": "71639c72680afb035618c5130ce34cbce2ba4291197d0e16bfafec6744cf7d35",
+    "source_register": "975f293294c3947ee725c7802faa661963202d4e89e85d3dd055f58063161088",
+    "students": "88a8afade4b8e7943075b8c734c69020999fee6e9138ac3b7de7a1eb90cbcd1b"
+  },
+  "edge_case_students": {
+    "absent_result": [
+      "S1010"
+    ],
+    "attendance_exact_at_threshold_75": [
+      "S1003"
+    ],
+    "attendance_exact_at_threshold_80": [
+      "S1001",
+      "S1020"
+    ],
+    "attendance_exact_at_threshold_80_held45": [
+      "S1005"
+    ],
+    "attendance_one_class_below_75": [
+      "S1004"
+    ],
+    "attendance_one_class_below_80": [
+      "S1002",
+      "S1021"
+    ],
+    "attendance_one_class_below_80_held45": [
+      "S1006"
+    ],
+    "cgpa_at_cutoff_with_one_backlog": [
+      "S1023"
+    ],
+    "cgpa_exactly_at_placement_cutoff": [
+      "S1011"
+    ],
+    "cgpa_one_hundredth_below_cutoff": [
+      "S1012"
+    ],
+    "detained_result": [
+      "S1022"
+    ],
+    "failed_course_just_below_pass_mark": [
+      "S1007"
+    ],
+    "full_attendance": [
+      "S1030"
+    ],
+    "missing_attendance_record_one_course": [
+      "S1009"
+    ],
+    "missing_attendance_records_all_courses": [
+      "S1028"
+    ],
+    "missing_result_records": [
+      "S1013"
+    ],
+    "multiple_active_backlogs_2": [
+      "S1025"
+    ],
+    "multiple_active_backlogs_3": [
+      "S1008"
+    ],
+    "passed_exactly_at_pass_mark": [
+      "S1024"
+    ],
+    "single_backlog_random": [
+      "S1014",
+      "S1016",
+      "S1018",
+      "S1027",
+      "S1031"
+    ],
+    "supplementary_attempts_exhausted": [
+      "S1019"
+    ],
+    "supplementary_eligible": [
+      "S1007"
+    ],
+    "what_if_placement_flips": [
+      "S1023"
+    ],
+    "zero_attendance": [
+      "S1029"
+    ]
+  },
+  "generator": "scripts/gen_data.py",
+  "llm": null,
+  "mode": "deterministic",
+  "reference_as_of_date": "2026-10-06",
+  "seed": 20261006,
+  "students_per_programme_batch": {
+    "B.Tech CSE | 2024": 9,
+    "B.Tech CSE | 2025": 9,
+    "B.Tech ECE | 2024": 9,
+    "B.Tech ECE | 2025": 9
+  }
+}
