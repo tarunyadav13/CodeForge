@@ -76,6 +76,7 @@ class State(TypedDict, total=False):
     evidence: list
     draft: Optional[str]
     notes: list
+    upcoming_chunks: list
     meta: dict
     response: AskResponse
 
@@ -106,15 +107,17 @@ def _numbers(text: str) -> set[str]:
     return {f"{float(n):g}" for n in re.findall(r"\d+(?:\.\d+)?", text.replace(",", ""))}
 
 
-def _upcoming_notes(result: Any, best_score: float) -> list[str]:
-    """Not-yet-effective rules that bear on the question (a retrieved but unrelated upcoming document is not mentioned)."""
-    seen, notes = set(), []
+def _upcoming_notes(result: Any, best_score: float) -> tuple[list[str], list]:
+    """Not-yet-effective rules that bear on the question (a retrieved but unrelated upcoming document is not mentioned).
+    Returns the note texts and the chunks they come from: a document named in an answer must also be cited."""
+    seen, notes, chunks = set(), [], []
     for e in sorted(result.upcoming, key=lambda e: -e.chunk.score):
         c = e.chunk
         if c.score >= best_score - EVIDENCE_MARGIN and c.doc_id not in seen:
             seen.add(c.doc_id)
+            chunks.append(c)
             notes.append(f"Upcoming change: {c.title} ({c.doc_id}) takes effect on {c.effective_from.isoformat()} and is not yet in force.")
-    return notes[:2]
+    return notes[:2], chunks[:2]
 
 
 def _response(state: State, answer: str, answer_type: str, *, citations: Optional[list[Citation]] = None,
@@ -169,7 +172,7 @@ def precedence(state: State) -> dict[str, Any]:
 def synthesize(state: State) -> dict[str, Any]:
     result = state["result"]
     hint = result.answer_type_hint
-    notes = _upcoming_notes(result, max((c.score for c in state["chunks"]), default=0.0))
+    notes, upcoming_chunks = _upcoming_notes(result, max((c.score for c in state["chunks"]), default=0.0))
     meta: dict[str, Any] = {
         "question_category": f"policy_{hint}", "sources_retrieved": [c.audit_entry() for c in state["chunks"]],
         "precedence_decision": result.decision, "model": "none (no LLM used)", "llm_calls": 0, "tokens": 0}
@@ -209,7 +212,7 @@ def synthesize(state: State) -> dict[str, Any]:
             llm_note = f"LLM unavailable ({type(exc).__name__})." + unchecked
     state_update = _response(state, "", "retrieved_fact", citations=[c.to_citation() for c in evidence],
                              explanation=f"{result.decision}. {llm_note}", conflicts=result.conflicts_detected, **meta)
-    return {**state_update, "evidence": evidence, "draft": draft, "notes": notes}
+    return {**state_update, "evidence": evidence, "draft": draft, "notes": notes, "upcoming_chunks": upcoming_chunks}
 
 
 def guard(state: State) -> dict[str, Any]:
@@ -228,6 +231,7 @@ def guard(state: State) -> dict[str, Any]:
     answer = draft or _extract(evidence)
     if state.get("notes"):
         answer += "\n\n" + " ".join(state["notes"])
+        resp.citations += [c.to_citation() for c in state.get("upcoming_chunks", [])]  # named in the answer, so cited
     resp.answer = answer
     return {"response": resp}
 

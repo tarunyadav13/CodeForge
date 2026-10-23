@@ -116,8 +116,10 @@ def test_the_persisted_store_answers_after_it_is_reopened(client, tmp_path):
 def test_future_effective_document_is_not_current_but_is_mentioned(client):
     ingest(client, "SYN-REG-ATT-75", "SYN-CIRC-ATT-80")
     j = ask(client, ATT_Q, as_of="2026-03-01")
-    assert clauses(j) == {("SYN-REG-ATT-75", "4.1")} and "75%" in j["answer"] and "80%" not in j["answer"].split("Upcoming")[0]
+    assert ("SYN-REG-ATT-75", "4.1") in clauses(j) and "75%" in j["answer"]
+    assert "80%" not in j["answer"].split("Upcoming change")[0]  # the future rule is not presented as the current one
     assert "SYN-CIRC-ATT-80 is not yet effective" in j["explanation"] and "Upcoming change" in j["answer"]
+    assert any(d == "SYN-CIRC-ATT-80" for d, _ in cited(j))  # a document named in the answer is also cited
 
 
 def test_supersession_applies_to_the_named_clause_only(client):
