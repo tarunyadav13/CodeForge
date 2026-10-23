@@ -1,0 +1,63 @@
+{
+  "_label": "SYNTHETIC EXAMPLES. Hand-written by Member 3 to show the Annex D audit shape (api/models.py AuditRecord). They are NOT output of the running backend, were not produced by any real request, and every number, ID and timestamp is invented. Replace with real records from GET /audit/{trace_id} once the backend runs.",
+  "_schema": "AuditRecord: trace_id, timestamp, student_id, question_category, sources_retrieved, precedence_decision, tools_invoked, answer_type, model, llm_calls, tokens, latency_ms (no raw question text).",
+  "_assumptions": [
+    "sources_retrieved is a list of objects; the frozen contract only says list[dict], so the keys inside (doc_id, section, version, effective_from) are an assumption.",
+    "tools_invoked items follow ToolInvocation (tool, input, output); the frozen contract only says list[dict].",
+    "model is shown as the planned local model name; the team has not confirmed it.",
+    "S1001, CS201 and the rule value are placeholders pending Member 2's seed data."
+  ],
+  "records": [
+    {
+      "trace_id": "EXAMPLE-0001",
+      "timestamp": "2026-10-23T10:15:00Z",
+      "student_id": null,
+      "question_category": "policy_lookup",
+      "sources_retrieved": [
+        {"doc_id": "SYN-CIRC-ATT-80", "section": "1.1", "version": "1.0", "effective_from": "2026-07-01"},
+        {"doc_id": "SYN-REG-ATT-75", "section": "4.1", "version": "1.0", "effective_from": "2022-07-01"},
+        {"doc_id": "SYN-FAQ-ATT-65", "section": "Q3", "version": "1.0", "effective_from": "2024-01-10"}
+      ],
+      "precedence_decision": "SYN-CIRC-ATT-80 applies: effective on the as-of date and explicitly supersedes SYN-REG-ATT-75 section 4.1 (level 2 supersedes level 1 text it names). SYN-FAQ-ATT-65 (level 5, informational) ignored.",
+      "tools_invoked": [],
+      "answer_type": "retrieved_fact",
+      "model": "llama3.1:8b",
+      "llm_calls": 1,
+      "tokens": 640,
+      "latency_ms": 4200
+    },
+    {
+      "trace_id": "EXAMPLE-0002",
+      "timestamp": "2026-10-23T10:16:30Z",
+      "student_id": "S1001",
+      "question_category": "personal_eligibility",
+      "sources_retrieved": [
+        {"doc_id": "SYN-CIRC-ATT-80", "section": "1.1", "version": "1.0", "effective_from": "2026-07-01"}
+      ],
+      "precedence_decision": null,
+      "tools_invoked": [
+        {"tool": "get_attendance", "input": {"student_id": "S1001", "course_code": "CS201"}, "output": {"classes_held": 40, "classes_attended": 31, "attendance_pct": 77.5}},
+        {"tool": "check_exam_eligibility", "input": {"student_id": "S1001", "course_code": "CS201", "as_of_date": "2026-10-23"}, "output": {"result": "NOT_ELIGIBLE", "rule_id": "EXAMPLE-RULE-ATT", "value": "80", "reason": "attendance 77.5 is below 80"}}
+      ],
+      "answer_type": "calculated",
+      "model": "llama3.1:8b",
+      "llm_calls": 1,
+      "tokens": 410,
+      "latency_ms": 3100
+    },
+    {
+      "trace_id": "EXAMPLE-0003",
+      "timestamp": "2026-10-23T10:18:05Z",
+      "student_id": "S1001",
+      "question_category": "cross_student_request",
+      "sources_retrieved": [],
+      "precedence_decision": null,
+      "tools_invoked": [],
+      "answer_type": "refused",
+      "model": "llama3.1:8b",
+      "llm_calls": 0,
+      "tokens": 0,
+      "latency_ms": 15
+    }
+  ]
+}
