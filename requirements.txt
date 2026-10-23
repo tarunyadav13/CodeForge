@@ -6,6 +6,7 @@ python-multipart>=0.0.9
 streamlit>=1.40
 requests>=2.31
 openai>=2,<4
+langgraph>=1.0
 chromadb>=1.0,<2
 sentence-transformers>=5.0
 pypdf>=5.0
